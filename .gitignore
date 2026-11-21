@@ -1,0 +1,11 @@
+# secrets and WhatsApp login (never commit)
+whatsapp_config.json
+wa-sender/.wwebjs_auth/
+wa-sender/.wwebjs_cache/
+
+# your own data / generated files
+stock.xlsx
+*.log
+wa-sender/node_modules/
+__pycache__/
+.claude/

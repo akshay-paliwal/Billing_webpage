@@ -1,0 +1,30 @@
+{
+  "currency": "₹",
+  "unit": "kg",
+  "default_country_code": "91",
+  "discount_percent": 10,
+  "discount_label": "Inauguration discount",
+  "products": [
+    { "name": "Haldi",              "hindi": "हल्दी",           "price": 420 },
+    { "name": "Mirch Powder",       "hindi": "मिर्च पाउडर",      "price": 480 },
+    { "name": "Sabut Mirch",        "hindi": "साबुत मिर्च",      "price": 480 },
+    { "name": "Dhania",             "hindi": "धनिया",           "price": 330 },
+    { "name": "Sabut Dhania",       "hindi": "सबुत धनिया",       "price": 330 },
+    { "name": "Garam Masala",       "hindi": "गरम मसाला",        "price": 1155 },
+    { "name": "Garam Masala Whole", "hindi": "गरम मसाला साबुत",  "price": 1155 },
+    { "name": "Wheat Atta",         "hindi": "गेहूं का आटा",       "price": 60 },
+    { "name": "Makka Atta",         "hindi": "मक्का आटा",        "price": 65 },
+    { "name": "Kutki",              "hindi": "कुटकी",           "price": 215 },
+    { "name": "Daliya",             "hindi": "दलिया",           "price": 65 },
+    { "name": "Basmati Rice",       "hindi": "बासमती चावल",      "price": 160 },
+    { "name": "Urad Dal",           "hindi": "उड़द की दाल",       "price": 265 },
+    { "name": "Arhar Dal",          "hindi": "अरहर दल",         "price": 250 },
+    { "name": "Moong Dal",          "hindi": "मूंग की दाल",       "price": 210 },
+    { "name": "Masoor",             "hindi": "मसूर",            "price": 210 },
+    { "name": "Chana Dal",          "hindi": "चना दाल",         "price": 185 },
+    { "name": "Chana",              "hindi": "चना",             "price": 145 },
+    { "name": "Besan",              "hindi": "बेसन",            "price": 210 },
+    { "name": "Gur",                "hindi": "गुड़",             "price": 150 },
+    { "name": "Shakkar",            "hindi": "शक्कर",           "price": 150 }
+  ]
+}

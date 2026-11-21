@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fair Billing</title>
+<style>
+  :root { --accent:#c2410c; --bg:#faf7f2; --card:#fff; --line:#e7e2da; --muted:#6b6560; --ok:#15803d; --err:#b91c1c; }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; font-family:system-ui, sans-serif; background:var(--bg); color:#1f1b16; }
+  main { max-width:760px; margin:0 auto; padding:16px; }
+  h1 { margin:8px 0 16px; font-size:1.5rem; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  label { display:block; font-size:.85rem; color:var(--muted); margin-bottom:4px; }
+  input[type=text], input[type=tel], input[type=number] { width:100%; padding:10px; font-size:1rem; border:1px solid var(--line); border-radius:8px; }
+  input:focus { outline:2px solid var(--accent); border-color:transparent; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:6px 4px; border-bottom:1px solid var(--line); text-align:left; }
+  th { font-size:.8rem; color:var(--muted); font-weight:600; }
+  td.num, th.num { text-align:right; white-space:nowrap; }
+  td .hi { color:var(--muted); font-size:.85rem; }
+  td input[type=number] { width:90px; padding:6px; text-align:right; }
+  tr.has td { background:#fff4ec; }
+  .totals { display:grid; grid-template-columns:1fr auto; gap:6px 16px; font-size:1.05rem; }
+  .totals .big { font-size:1.4rem; font-weight:700; }
+  .toggle { display:flex; align-items:center; gap:8px; cursor:pointer; }
+  .toggle input { width:20px; height:20px; accent-color:var(--accent); }
+  .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+  button, a.btn { border:0; border-radius:8px; padding:12px 18px; font-size:1rem; cursor:pointer; text-decoration:none; display:inline-block; }
+  .primary { background:var(--accent); color:#fff; }
+  .secondary { background:#efe9e1; color:#1f1b16; }
+  .wa { background:#25d366; color:#06331a; }
+  button:disabled { opacity:.5; cursor:default; }
+  #msg { margin-top:12px; }
+  .ok { color:var(--ok); } .err { color:var(--err); }
+  .search { margin-bottom:10px; }
+  .wa-status { padding:12px 16px; }
+  .wa-row { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; }
+  #waState::before { content:"●"; margin-right:8px; color:var(--dot, var(--muted)); }
+  #waQr { display:flex; flex-wrap:wrap; gap:16px; align-items:center; margin-top:12px; }
+  #waQr img { width:220px; height:220px; image-rendering:pixelated; border:1px solid var(--line); border-radius:8px; }
+  #waQr ol { margin:0; padding-left:20px; line-height:1.7; }
+  .hint { color:var(--muted); font-size:.9rem; margin:14px 0 0; }
+  button.link { background:none; padding:0 0 0 6px; font-size:.9rem; color:var(--accent); text-decoration:underline; }
+  td.left { color:var(--muted); font-size:.85rem; }
+  tr.soldout td { color:#a8a29e; background:#f5f5f4; }
+  .badge { display:inline-block; background:var(--err); color:#fff; font-size:.75rem; font-weight:600; padding:2px 8px; border-radius:999px; }
+  input.over { outline:2px solid var(--err); border-color:transparent; }
+  .over-msg { color:var(--err); font-size:.8rem; }
+  .pay { display:flex; gap:8px; align-items:center; margin-top:16px; flex-wrap:wrap; }
+  .pay > span { color:var(--muted); margin-right:4px; }
+  .pay label { margin:0; }
+  .pay input { position:absolute; opacity:0; pointer-events:none; }
+  .pay label span { display:inline-block; padding:10px 22px; border:2px solid var(--line); border-radius:8px; font-size:1rem; color:#1f1b16; cursor:pointer; }
+  .pay input:checked + span { border-color:var(--accent); background:#fff4ec; font-weight:700; }
+  .pay input:focus-visible + span { outline:2px solid var(--accent); }
+  @media (max-width:520px) { .row { grid-template-columns:1fr; } td input[type=number] { width:70px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Bill / Receipt</h1>
+
+  <div class="card wa-status" id="waBox" hidden>
+    <div class="wa-row"><div id="waState"></div>
+      <button class="link" id="waSwitch" hidden>Change WhatsApp account</button></div>
+    <div id="waQr" hidden>
+      <img id="waQrImg" alt="WhatsApp QR code">
+      <ol>
+        <li>Open WhatsApp on the phone that should send the bills</li>
+        <li>Tap ⋮ (or Settings) → <b>Linked devices</b> → <b>Link a device</b></li>
+        <li>Scan this code. You only need to do this once.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="card row">
+    <div><label for="name">Customer name</label><input id="name" type="text" autocomplete="off"></div>
+    <div><label for="mobile">Mobile number</label><input id="mobile" type="tel" placeholder="e.g. 98765 43210" autocomplete="off"></div>
+  </div>
+
+  <div class="card">
+    <input class="search" id="search" type="text" placeholder="Search product…">
+    <table>
+      <thead><tr><th>Product</th><th class="num">Rate</th><th class="num">Left</th><th class="num">Qty</th><th class="num">Amount</th></tr></thead>
+      <tbody id="items"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="totals">
+      <span>Subtotal</span><span id="subtotal" class="num">0</span>
+      <label class="toggle"><input id="discount" type="checkbox" checked><span id="discLabel">Discount</span></label>
+      <span id="discAmt" class="num">0</span>
+      <span>Round off</span><span id="roundOff" class="num">0</span>
+      <span class="big">Total</span><span id="total" class="big num">0</span>
+    </div>
+    <div class="pay" role="radiogroup" aria-label="Payment mode">
+      <span>Paid by</span>
+      <label><input type="radio" name="payment" value="Cash"><span>Cash</span></label>
+      <label><input type="radio" name="payment" value="UPI"><span>UPI</span></label>
+    </div>
+    <div class="actions">
+      <button class="primary" id="generate">Generate bill PDF</button>
+      <button class="secondary" id="reset">New customer</button>
+    </div>
+    <p class="hint">Bills are saved automatically to <b id="billsDir"></b>
+      <button class="link" id="openFolder">Open folder</button></p>
+    <div id="result" class="actions" hidden></div>
+    <div id="msg"></div>
+  </div>
+</main>
+
+<script>
+let cfg;
+const $ = id => document.getElementById(id);
+const r2 = x => Math.round(x * 100 + 1e-9) / 100;
+const fmt = n => `${cfg.currency} ${n.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+async function init() {
+  cfg = await (await fetch('/api/config')).json();
+  $('billsDir').textContent = cfg.bills_dir;
+  $('openFolder').addEventListener('click', () => fetch('/api/open-folder', { method: 'POST' }));
+  $('discLabel').textContent = `${cfg.discount_label} (${cfg.discount_percent}%)`;
+  $('items').innerHTML = cfg.products.map((p, i) => `
+    <tr data-name="${(p.name + ' ' + (p.hindi || '')).toLowerCase()}">
+      <td>${p.name} <span class="hi">${p.hindi || ''}</span></td>
+      <td class="num">${fmt(p.price)}/${cfg.unit}</td>
+      <td class="num left" id="left${i}"></td>
+      <td class="num"><input type="number" min="0" step="0.05" inputmode="decimal" data-i="${i}" placeholder="0"></td>
+      <td class="num" id="amt${i}"></td>
+    </tr>`).join('');
+  document.querySelectorAll('#items input').forEach(el => el.addEventListener('input', recalc));
+  $('discount').addEventListener('change', recalc);
+  $('search').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('#items tr').forEach(tr => tr.hidden = !tr.dataset.name.includes(q));
+  });
+  if (cfg.whatsapp_auto) $('generate').textContent = 'Save bill & send on WhatsApp';
+  if (cfg.whatsapp_mode === 'web') pollWhatsApp();
+  $('waSwitch').addEventListener('click', switchWhatsApp);
+  $('generate').addEventListener('click', generate);
+  // after a bill is sent, any edit re-enables the button (prevents double-sending by accident)
+  document.querySelector('main').addEventListener('input', () => { $('generate').disabled = false; });
+  $('reset').addEventListener('click', reset);
+  recalc();
+  pollSummary();
+}
+
+// stock left per product ({} = no limits), refreshed every 10 s
+let stock = {};
+async function loadSummary() {
+  try {
+    const r = await (await fetch('/api/summary')).json();
+    if (r.error) return;
+    stock = r.stock;
+    showStock();
+  } catch {}
+}
+function pollSummary() { loadSummary().finally(() => setTimeout(pollSummary, 10000)); }
+
+function showStock() {
+  cfg.products.forEach((p, i) => {
+    const left = stock[p.name], cell = $('left' + i), input = document.querySelector(`#items input[data-i="${i}"]`);
+    const soldOut = left !== undefined && left <= 0;
+    cell.innerHTML = left === undefined ? '' : soldOut ? '<span class="badge">Sold out</span>' : `${+left.toFixed(3)} ${cfg.unit}`;
+    input.disabled = soldOut;
+    if (soldOut) input.value = '';
+    input.closest('tr').classList.toggle('soldout', soldOut);
+  });
+  recalc();
+}
+
+function items() {
+  return [...document.querySelectorAll('#items input')]
+    .map(el => ({ name: cfg.products[el.dataset.i].name, qty: parseFloat(el.value) || 0 }))
+    .filter(it => it.qty > 0);
+}
+
+function recalc() {
+  let sub = 0;
+  document.querySelectorAll('#items input').forEach(el => {
+    const q = parseFloat(el.value) || 0, amt = r2(q * cfg.products[el.dataset.i].price);
+    sub += amt;
+    const left = stock[cfg.products[el.dataset.i].name], over = left !== undefined && q > left + 1e-9;
+    el.classList.toggle('over', over);
+    $('amt' + el.dataset.i).innerHTML = over ? `<span class="over-msg">only ${+left.toFixed(3)} ${cfg.unit} left</span>`
+                                             : q > 0 ? fmt(amt) : '';
+    el.closest('tr').classList.toggle('has', q > 0);
+  });
+  sub = r2(sub);
+  const disc = $('discount').checked ? r2(sub * cfg.discount_percent / 100) : 0;
+  $('subtotal').textContent = fmt(sub);
+  $('discAmt').textContent = disc ? '- ' + fmt(disc) : fmt(0);
+  const net = r2(sub - disc), total = Math.ceil(net - 1e-9);  // round up to the next whole rupee
+  $('roundOff').textContent = '+ ' + fmt(r2(total - net));
+  $('total').textContent = `${cfg.currency} ${total.toLocaleString('en-IN')}`;
+}
+
+const WA_STATES = {
+  ready:        ['#15803d', me => `WhatsApp connected — bills are sent from +${me}`],
+  qr:           ['#c2410c', () => 'WhatsApp not linked yet — scan the QR code below'],
+  linking:      ['#ca8a04', () => 'QR scanned — loading WhatsApp… (up to a minute)'],
+  starting:     ['#ca8a04', () => 'Connecting to WhatsApp… (can take up to a minute)'],
+  disconnected: ['#b91c1c', () => 'WhatsApp disconnected — reconnecting…'],
+  offline:      ['#b91c1c', () => 'WhatsApp helper is not running — restart the app (bills can still be sent manually)'],
+};
+
+async function pollWhatsApp() {
+  let st = { state: 'offline' };
+  try { st = await (await fetch('/api/wa-status')).json(); } catch {}
+  const [color, text] = WA_STATES[st.state] || WA_STATES.offline;
+  $('waBox').hidden = false;
+  $('waState').style.setProperty('--dot', color);
+  $('waState').textContent = text(st.me);
+  $('waQr').hidden = !(st.state === 'qr' && st.qr);
+  $('waSwitch').hidden = st.state !== 'ready';
+  if (st.qr) $('waQrImg').src = st.qr;
+  setTimeout(pollWhatsApp, st.state === 'ready' ? 15000 : 3000);
+}
+
+async function switchWhatsApp() {
+  const who = $('waState').textContent.match(/\+\d+/)?.[0] || 'the current number';
+  if (!confirm(`Unlink ${who} from this laptop?\n\nBills won't be sent on WhatsApp until you scan the new QR code with the other phone.`)) return;
+  $('waSwitch').hidden = true;
+  $('waState').textContent = 'Unlinking… a new QR code will appear in a few seconds';
+  await fetch('/api/wa-logout', { method: 'POST' });
+}
+
+function say(text, cls) { $('msg').className = cls || ''; $('msg').textContent = text; }
+
+async function generate() {
+  say('');
+  const btn = $('generate');
+  btn.disabled = true;
+  let done = false;
+  try {
+    if (document.querySelector('#items input.over')) return say('Some quantities are more than the stock left — fix the red boxes.', 'err');
+    const payment = document.querySelector('input[name=payment]:checked')?.value;
+    if (!payment) return say('Choose how the customer paid: Cash or UPI.', 'err');
+    const res = await fetch('/api/bill', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: $('name').value, mobile: $('mobile').value, items: items(),
+                             discount: $('discount').checked, payment })
+    });
+    const r = await res.json();
+    if (!res.ok) {
+      if (r.stock) { stock = r.stock; showStock(); }
+      return say(r.error, 'err');
+    }
+    loadSummary();
+
+    const pdfUrl = '/bills/' + encodeURIComponent(r.file);
+    const waUrl = `https://wa.me/${r.wa_number}?text=${encodeURIComponent(r.wa_text)}`;
+    const box = $('result');
+    box.innerHTML = `<a class="btn secondary" href="${pdfUrl}" target="_blank">Open PDF</a>` +
+      (r.wa_sent ? '' : `<a class="btn wa" href="${waUrl}" target="_blank">Send bill on WhatsApp</a>`);
+    box.hidden = false;
+    done = true;
+    const xl = r.excel_error ? ` ⚠ Excel not updated: ${r.excel_error}` : ' · added to sales.xlsx';
+
+    if (r.wa_sent) say(`✔ Bill saved and sent on WhatsApp to +${r.wa_number}${xl}`, r.excel_error ? 'err' : 'ok');
+    else if (r.wa_sent === false) say(`Bill saved, but WhatsApp sending failed: ${r.wa_message}. Use the green button to send it manually.${xl}`, 'err');
+    else say(`✔ Bill saved: ${r.path}${xl} — click "Send bill on WhatsApp", then press Send in WhatsApp.`, r.excel_error ? 'err' : 'ok');
+  } catch (e) {
+    say('Could not reach the billing server: ' + e.message, 'err');
+  } finally {
+    btn.disabled = done;
+  }
+}
+
+function reset() {
+  $('name').value = ''; $('mobile').value = ''; $('search').value = '';
+  document.querySelectorAll('#items input').forEach(el => el.value = '');
+  document.querySelectorAll('#items tr').forEach(tr => tr.hidden = false);
+  $('discount').checked = true;
+  document.querySelectorAll('input[name=payment]').forEach(el => el.checked = false);
+  $('result').hidden = true; say(''); $('generate').disabled = false;
+  recalc(); $('name').focus();
+}
+
+init();
+</script>
+</body>
+</html>

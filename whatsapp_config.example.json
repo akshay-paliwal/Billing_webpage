@@ -1,0 +1,9 @@
+{
+  "mode": "web",
+  "token": "PASTE_PERMANENT_ACCESS_TOKEN_HERE",
+  "phone_number_id": "PASTE_PHONE_NUMBER_ID_HERE",
+  "template": "bill_receipt",
+  "language": "en",
+  "api_version": "v25.0",
+  "show_browser": false
+}
