@@ -10,7 +10,18 @@ const QRCode = require('qrcode');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 
 const PORT = Number(process.env.WA_SENDER_PORT || 3001);
-const CHROME = process.env.CHROME_PATH || '/usr/bin/google-chrome';
+// Find Chrome/Chromium: CHROME_PATH if set, else the usual install locations.
+const CHROME = (() => {
+  const candidates = [
+    process.env.CHROME_PATH,
+    '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/opt/google/chrome/chrome',
+    '/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ];
+  return candidates.find(p => p && fs.existsSync(p)) || null;
+})();
 
 const PROFILE = path.join(__dirname, '.wwebjs_auth', 'session');
 
@@ -34,6 +45,7 @@ function killLeftoverChrome() {
 }
 
 let state = 'starting';
+let lastError = null;
 let qrDataUrl = null;
 let me = null;
 
@@ -41,7 +53,14 @@ let client = null;
 let restarting = false;
 
 function startClient() {
+  if (!CHROME) {
+    state = 'error';
+    lastError = 'Google Chrome not found. Install Chrome, or set CHROME_PATH to its location.';
+    console.log('[wa] ' + lastError);
+    return;
+  }
   state = 'starting';
+  lastError = null;
   qrDataUrl = null;
   me = null;
   const c = new Client({
@@ -69,7 +88,12 @@ function startClient() {
     if (!restarting) restartClient(reason === 'LOGOUT');  // e.g. unlinked from the phone
   });
   client = c;
-  c.initialize().catch(e => { state = 'disconnected'; console.log('[wa] failed to start:', e.message); });
+  c.initialize().catch(e => {
+    state = 'error';
+    lastError = e.message;
+    console.log('[wa] failed to start:', e.message, '- retrying in 30 s');
+    setTimeout(() => restartClient(false), 30000);
+  });
 }
 
 // Close the current session and start fresh; with forget=true the saved login is
@@ -102,7 +126,7 @@ function reply(res, code, body) {
 
 http.createServer((req, res) => {
   if (req.method === 'GET' && req.url === '/status') {
-    return reply(res, 200, { state, qr: qrDataUrl, me });
+    return reply(res, 200, { state, qr: qrDataUrl, me, error: lastError });
   }
   if (req.method === 'POST' && req.url === '/logout') {
     console.log('[wa] switching account: unlinking +' + me);
@@ -123,7 +147,7 @@ http.createServer((req, res) => {
     return;
   }
   reply(res, 404, { error: 'not found' });
-}).listen(PORT, '127.0.0.1', () => console.log(`[wa] helper on http://127.0.0.1:${PORT} (${SHOW_BROWSER ? 'visible window' : 'hidden'})`));
+}).listen(PORT, '127.0.0.1', () => console.log(`[wa] helper on http://127.0.0.1:${PORT} (Chrome: ${CHROME || 'NOT FOUND'}, ${SHOW_BROWSER ? 'visible window' : 'hidden'})`));
 
 // Close Chrome with us, and quit if the billing app that started us goes away.
 let stopping = false;

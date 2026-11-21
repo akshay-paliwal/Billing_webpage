@@ -206,6 +206,7 @@ const WA_STATES = {
   starting:     ['#ca8a04', () => 'Connecting to WhatsApp… (can take up to a minute)'],
   disconnected: ['#b91c1c', () => 'WhatsApp disconnected — reconnecting…'],
   offline:      ['#b91c1c', () => 'WhatsApp helper is not running — restart the app (bills can still be sent manually)'],
+  error:        ['#b91c1c', () => 'WhatsApp could not start — retrying every 30 s (bills can still be sent manually)'],
 };
 
 async function pollWhatsApp() {
@@ -214,7 +215,7 @@ async function pollWhatsApp() {
   const [color, text] = WA_STATES[st.state] || WA_STATES.offline;
   $('waBox').hidden = false;
   $('waState').style.setProperty('--dot', color);
-  $('waState').textContent = text(st.me);
+  $('waState').textContent = text(st.me) + (st.error ? ` · Reason: ${st.error}` : '');
   $('waQr').hidden = !(st.state === 'qr' && st.qr);
   $('waSwitch').hidden = st.state !== 'ready';
   if (st.qr) $('waQrImg').src = st.qr;

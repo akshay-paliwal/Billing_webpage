@@ -6,6 +6,7 @@ Run:  python app.py   then open http://localhost:5050
 import json
 import os
 import re
+import shutil
 import subprocess
 import threading
 from datetime import datetime
@@ -413,9 +414,20 @@ def send_via_web(to, text):
     return (True, "sent") if r.get("ok") else (False, r.get("error", "unknown error"))
 
 
+HELPER_PROBLEM = None  # why the helper couldn't be started, shown on the page
+
+
 def start_helper():
     """Start the WhatsApp Web helper next to this app (once)."""
+    global HELPER_PROBLEM
     if wa_mode() != "web" or helper_status()["state"] != "offline":
+        return None
+    if not shutil.which("node"):
+        HELPER_PROBLEM = "Node.js is not installed (needed for WhatsApp sending). Install Node 18+ and restart."
+    elif not (BASE / "wa-sender" / "node_modules" / "whatsapp-web.js").exists():
+        HELPER_PROBLEM = "WhatsApp helper not installed: run 'PUPPETEER_SKIP_DOWNLOAD=1 npm install' in the wa-sender folder, then restart."
+    if HELPER_PROBLEM:
+        print("WhatsApp:", HELPER_PROBLEM)
         return None
     log = open(BASE / "wa-sender" / "helper.log", "a")
     return subprocess.Popen(["node", str(BASE / "wa-sender" / "index.js")], stdout=log, stderr=log)
@@ -507,7 +519,12 @@ def summary():
 
 @app.get("/api/wa-status")
 def wa_status():
-    return jsonify(helper_status() if wa_mode() == "web" else {"state": "api"})
+    if wa_mode() != "web":
+        return jsonify(state="api")
+    st = helper_status()
+    if st["state"] == "offline" and HELPER_PROBLEM:
+        st["error"] = HELPER_PROBLEM
+    return jsonify(st)
 
 
 @app.post("/api/wa-logout")

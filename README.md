@@ -157,7 +157,8 @@ The app is written for Linux. On macOS/Windows:
 
 - **Page doesn't open on a phone** – same Wi-Fi as the laptop? Use `http://` and `:5050`.
   The laptop's firewall may need to allow port 5050.
-- **WhatsApp stuck on "Connecting…" or "helper is not running"** – restart the app; check
-  `wa-sender/helper.log`.
+- **WhatsApp not connecting / no QR code** – the status bar shows the reason. Common ones:
+  Chrome not installed (install Google Chrome, or set `CHROME_PATH`), Node.js missing, or
+  `npm install` not run in `wa-sender`. Fix it and restart the app. Details: `wa-sender/helper.log`.
 - **"Not enough stock"** – raise the number in `stock.xlsx` (Stock column) and save.
 - **Excel not updated warning** – close `sales.xlsx` / `stock.xlsx` in Excel and try again.
